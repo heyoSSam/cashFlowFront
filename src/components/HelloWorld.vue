@@ -17,6 +17,26 @@
       </select>
     </div>
 
+    <div class="m-2">
+      <label class="block font-medium text-gray-700">IDs для исключения</label>
+      <div v-for="(id, idx) in ids" :key="idx" class="flex gap-2">
+        <input
+          type="text"
+          v-model="ids[idx]"
+          class="input flex-1 mx-2"
+          placeholder="Введи ID"
+        />
+        <button
+          v-if="idx === ids.length - 1"
+          type="button"
+          class="btn px-3"
+          @click="addIdInput"
+        >
+          +
+        </button>
+      </div>
+    </div>
+
     <!-- Загрузка файла -->
     <div
       class="upload-area my-4"
@@ -105,6 +125,12 @@ const file = ref(null)
 const csvData = ref([])
 const loading = ref(false)
 
+const ids = ref([""])
+
+const addIdInput = () => {
+  ids.value.push("")
+}
+
 const handleFile = (e) => {
   file.value = e.target.files[0]
 }
@@ -113,7 +139,6 @@ const handleDrop = (e) => {
   file.value = e.dataTransfer.files[0]
 }
 
-// задержка
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const sendFile = async () => {
@@ -123,8 +148,9 @@ const sendFile = async () => {
   try {
     const formData = new FormData()
     formData.append("file", file.value)
-    formData.append("activity", option1.value) // вид деятельности
-    formData.append("bank", option2.value)     // код банка
+    formData.append("bank", option2.value)  
+    const cleanIds = ids.value.filter((id) => id && id.trim() !== "")
+    formData.append("ids_to_exclude", JSON.stringify(cleanIds))
 
     let attempts = 0
     let success = false
@@ -132,7 +158,7 @@ const sendFile = async () => {
 
     while (attempts < 3 && !success) {
       try {
-        const res = await fetch("http://localhost:8020/", {
+        const res = await fetch("http://localhost:8020/preapproval/ep", {
           method: "POST",
           body: formData
         })
@@ -166,7 +192,6 @@ const sendFile = async () => {
   }
 }
 
-// Средний оборот по кредиту
 const avgCredit = computed(() => {
   if (!csvData.value.length) return 0
   const rows = csvData.value.slice(1)
@@ -183,7 +208,6 @@ const avgCredit = computed(() => {
   return credits.reduce((a, b) => a + b, 0) / credits.length
 })
 
-// Максимальный ЕП по кредиту
 const maxEP = computed(() => {
   if (!option1.value || !avgCredit.value) return 0
   const percent = percentages[option1.value] ?? 0
@@ -198,6 +222,11 @@ const maxEP = computed(() => {
   border-radius: 8px;
   flex: 1;
   margin: 5px;
+}
+.input {
+  border: 1px solid #ccc;
+  padding: 8px 12px;
+  border-radius: 8px;
 }
 .upload-area {
   border: 2px dashed #ccc;
@@ -215,7 +244,7 @@ const maxEP = computed(() => {
 .btn {
   background: #42b883;
   color: white;
-  padding: 12px 20px;
+  padding: 8px 16px;
   border: none;
   border-radius: 8px;
   cursor: pointer;
